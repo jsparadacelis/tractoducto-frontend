@@ -1,0 +1,31 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #fdfdfd;
+    margin: 20px;
+}
+
+.container {
+    padding: 20px;
+    display: flex;
+}
+
+.map {
+    border: 2px solid #000;
+    height: 90vh;
+    width: 65%;
+    margin: 0 0 0 10px;
+}
+
+.panel {
+    border: 2px solid #000;
+    height: 90vh;
+    width: 35%;
+    padding: 0 10px 0 0;
+}
+
+.date-box {
+    padding: 8px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+}
