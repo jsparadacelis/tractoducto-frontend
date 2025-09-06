@@ -88,18 +88,6 @@ export function showSegmentInfo(segment) {
                 <span class="info-value">${segment.variables.rain_mm.toFixed(1)} mm</span>
             </div>
         </div>
-        <div class="info-item">
-            <div class="info-content-item">
-                <span class="info-name">🌡️ Temperatura</span>
-                <span class="info-value">${segment.variables.temperature_c.toFixed(1)}°C</span>
-            </div>
-        </div>
-        <div class="info-item">
-            <div class="info-content-item">
-                <span class="info-name">🛢️ Volumen de aceite</span>
-                <span class="info-value">${segment.variables.oil_volume_lt} L</span>
-            </div>
-        </div>
     `;
 }
 
@@ -132,9 +120,6 @@ function updateMetricsPanel(segment) {
     metricsList.innerHTML = `
         <li class="metric-item" data-metric="rain" data-unit="mm">
             <span class="metric-name">🌧️ Lluvia</span>
-        </li>
-        <li class="metric-item" data-metric="temperature" data-unit="°C">
-            <span class="metric-name">🌡️ Temperatura</span>
         </li>
         <li class="metric-item" data-metric="oil_volume" data-unit="L">
             <span class="metric-name">🛢️ Galones crudo</span>
