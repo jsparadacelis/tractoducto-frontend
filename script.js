@@ -342,11 +342,43 @@ function hideSegmentAnalytics() {
 function updateMetricsPanel(segment) {
     const metricsList = document.querySelector('.metrics-list');
     metricsList.innerHTML = `
-        <li>- Lluvia: ${segment.variables.rain_mm.toFixed(1)} mm</li>
-        <li>- Temperatura: ${segment.variables.temperature_c.toFixed(1)}°C</li>
-        <li>- Galones crudo: ${segment.variables.oil_volume_lt} L</li>
-        <li>- Criticidad promedio: ${segment.target.criticidad.toUpperCase()}</li>
+        <li class="metric-item" data-metric="rain" data-value="${segment.variables.rain_mm}" data-unit="mm">
+            - Lluvia: ${segment.variables.rain_mm.toFixed(1)} mm
+        </li>
+        <li class="metric-item" data-metric="temperature" data-value="${segment.variables.temperature_c}" data-unit="°C">
+            - Temperatura: ${segment.variables.temperature_c.toFixed(1)}°C
+        </li>
+        <li class="metric-item" data-metric="oil_volume" data-value="${segment.variables.oil_volume_lt}" data-unit="L">
+            - Galones crudo: ${segment.variables.oil_volume_lt} L
+        </li>
+        <li class="metric-item" data-metric="criticality" data-value="${segment.target.criticidad}" data-unit="">
+            - Criticidad promedio: ${segment.target.criticidad.toUpperCase()}
+        </li>
     `;
+    
+    // Add click listeners to metric items
+    addMetricClickListeners(segment);
+}
+
+function addMetricClickListeners(segment) {
+    const metricItems = document.querySelectorAll('.metric-item');
+    
+    metricItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active class from all items
+            metricItems.forEach(i => i.classList.remove('metric-active'));
+            
+            // Add active class to clicked item
+            item.classList.add('metric-active');
+            
+            // Get metric data
+            const metric = item.dataset.metric;
+            const unit = item.dataset.unit;
+            
+            // Draw time-series chart for this metric
+            drawMetricTimeSeriesChart(segment, metric, unit);
+        });
+    });
 }
 
 // --- Rainfall Chart with Chart.js ---
@@ -446,6 +478,156 @@ function generateSegmentHistoricalData(segment) {
     }
     
     return { dates, rainfall };
+}
+
+// --- Time-Series Chart for Selected Metric ---
+function drawMetricTimeSeriesChart(segment, metric, unit) {
+    const canvas = document.getElementById('rainfall-chart');
+    const ctx = canvas.getContext('2d');
+    
+    // Generate 7-day time series data for the selected metric
+    const timeSeriesData = generateMetricTimeSeriesData(segment, metric);
+    
+    // Destroy existing chart if it exists
+    if (rainfallChart) {
+        rainfallChart.destroy();
+    }
+    
+    // Get metric display name and color
+    const metricConfig = getMetricConfig(metric);
+    
+    // Create new time-series chart
+    rainfallChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeSeriesData.dates,
+            datasets: [{
+                label: `${metricConfig.name} (${unit})`,
+                data: timeSeriesData.values,
+                backgroundColor: metricConfig.color + '20', // Semi-transparent
+                borderColor: metricConfig.color,
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4, // Smooth curves
+                pointBackgroundColor: metricConfig.color,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `${metricConfig.name} - Segmento ${segment.segment_id} (7 días)`,
+                    font: {
+                        size: 16,
+                        weight: '600'
+                    },
+                    color: '#374151'
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: metric === 'rain' || metric === 'oil_volume',
+                    grid: {
+                        color: '#f3f4f6'
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function getMetricConfig(metric) {
+    const configs = {
+        rain: { name: 'Lluvia', color: '#3b82f6' },
+        temperature: { name: 'Temperatura', color: '#ef4444' },
+        oil_volume: { name: 'Galones Crudo', color: '#8b5cf6' },
+        criticality: { name: 'Criticidad', color: '#f59e0b' }
+    };
+    return configs[metric] || { name: 'Métrica', color: '#6b7280' };
+}
+
+function generateMetricTimeSeriesData(segment, metric) {
+    const dates = [];
+    const values = [];
+    const selectedDate = new Date(document.getElementById("fecha-picker").value);
+    
+    // Generate 7 days from selected date
+    for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(selectedDate);
+        currentDate.setDate(selectedDate.getDate() + i);
+        dates.push(currentDate.toLocaleDateString('es', { month: '2-digit', day: '2-digit' }));
+        
+        // Generate realistic values based on metric type
+        values.push(generateMetricValue(segment, metric, i));
+    }
+    
+    return { dates, values };
+}
+
+function generateMetricValue(segment, metric, dayOffset) {
+    const baseValues = {
+        rain: segment.variables.rain_mm,
+        temperature: segment.variables.temperature_c,
+        oil_volume: segment.variables.oil_volume_lt,
+        criticality: segment.target.criticidad === 'alta' ? 3 : segment.target.criticidad === 'media' ? 2 : 1
+    };
+    
+    const baseValue = baseValues[metric];
+    
+    // Add realistic variation based on metric type and time
+    let variation = 0;
+    switch (metric) {
+        case 'rain':
+            variation = (Math.random() - 0.5) * baseValue * 0.6; // Rain varies a lot
+            break;
+        case 'temperature':
+            variation = (Math.random() - 0.5) * 8 + Math.sin(dayOffset * 0.5) * 3; // Daily temp cycles
+            break;
+        case 'oil_volume':
+            variation = (Math.random() - 0.5) * baseValue * 0.3; // Traffic varies moderately
+            break;
+        case 'criticality':
+            // Criticality trends based on other factors
+            variation = (Math.random() - 0.5) * 0.8;
+            break;
+    }
+    
+    const newValue = baseValue + variation;
+    
+    // Ensure reasonable bounds
+    if (metric === 'criticality') {
+        return Math.max(1, Math.min(3, newValue));
+    } else if (metric === 'rain') {
+        return Math.max(0, newValue);
+    } else {
+        return newValue;
+    }
 }
 
 // --- Initialize Application ---
