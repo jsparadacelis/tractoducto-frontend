@@ -18,9 +18,24 @@
 
     <div class="container">
         <div class="panel">
+            <div class="status-section">
+                <label class="status-title">Modo de análisis:</label>
+                <div class="mode-indicator">
+                    <div id="descriptive-label" class="mode-label active">📊 Descriptivo</div>
+                    <div id="predictive-label" class="mode-label">🔮 Predictivo</div>
+                </div>
+            </div>
+            
             <div class="date-box">
                 <span>📅</span>
                 <input type="text" id="fecha-picker" placeholder="Selecciona fecha">
+            </div>
+
+            <div class="segment-info" id="segment-info">
+                <h3>Información del Segmento</h3>
+                <div class="info-content">
+                    <p>Selecciona un segmento en el mapa para ver su información</p>
+                </div>
             </div>
 
         </div>
@@ -31,18 +46,10 @@
 
 
     </div>
-    <div>
-        <button id="callApiBtn">Llamar API</button>
-    </div>
 
 </body>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<script src="script.js"></script>
-
-<script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=&callback=initMap">
-    </script>
+<script type="module" src="script.js"></script>
 
 </html>
