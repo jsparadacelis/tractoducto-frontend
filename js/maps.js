@@ -19,7 +19,18 @@ export function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 3.746525, lng: -71.863551 },
         zoom: 14,
+        mapTypeId: google.maps.MapTypeId.SATELLITE
     });
+    
+    // Enable labels on satellite view
+    map.setOptions({
+        mapTypeControlOptions: {
+            mapTypeIds: ['satellite', 'hybrid']
+        }
+    });
+    
+    // Set to hybrid mode (satellite with labels)
+    map.setMapTypeId(google.maps.MapTypeId.HYBRID);
 }
 
 // Make initMap globally available for the Google Maps callback

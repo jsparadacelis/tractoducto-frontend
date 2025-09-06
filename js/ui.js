@@ -52,35 +52,64 @@ export function setMode(mode) {
 // --- Segment Information Display ---
 export function showSegmentInfo(segment) {
     const infoContent = document.querySelector('.info-content');
+    const segmentTitle = document.querySelector('.segment-info h3');
     const dataType = getDataTypeLabel(segment.date);
     
+    // Update header to show segment ID on the right
+    segmentTitle.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span>Información del Segmento</span>
+            <span style="font-size: 12px; font-weight: 500; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">${segment.segment_id}</span>
+        </div>
+    `;
+    
     infoContent.innerHTML = `
-        <div class="variable-item">
-            <strong>Tipo de datos:</strong> ${dataType}
+        <div class="info-item">
+            <div class="info-content-item">
+                <span class="info-name">📊 Tipo de datos</span>
+                <span class="info-value">${dataType}</span>
+            </div>
         </div>
-        <div class="variable-item">
-            <strong>Segmento:</strong> ${segment.segment_id}
+        <div class="info-item">
+            <div class="info-content-item">
+                <span class="info-name">📅 Fecha</span>
+                <span class="info-value">${segment.date}</span>
+            </div>
         </div>
-        <div class="variable-item">
-            <strong>Fecha:</strong> ${segment.date}
+        <div class="info-item criticality-${segment.target.criticidad === 'alta' ? 'high' : segment.target.criticidad === 'media' ? 'medium' : 'low'}">
+            <div class="info-content-item">
+                <span class="info-name">⚠️ Criticidad</span>
+                <span class="info-value">${segment.target.criticidad.toUpperCase()}</span>
+            </div>
         </div>
-        <div class="variable-item criticality-${segment.target.criticidad === 'alta' ? 'high' : segment.target.criticidad === 'media' ? 'medium' : 'low'}">
-            <strong>Criticidad:</strong> ${segment.target.criticidad.toUpperCase()}
+        <div class="info-item">
+            <div class="info-content-item">
+                <span class="info-name">🌧️ Lluvia</span>
+                <span class="info-value">${segment.variables.rain_mm.toFixed(1)} mm</span>
+            </div>
         </div>
-        <div class="variable-item">
-            <strong>Lluvia:</strong> ${segment.variables.rain_mm.toFixed(1)} mm
+        <div class="info-item">
+            <div class="info-content-item">
+                <span class="info-name">🌡️ Temperatura</span>
+                <span class="info-value">${segment.variables.temperature_c.toFixed(1)}°C</span>
+            </div>
         </div>
-        <div class="variable-item">
-            <strong>Temperatura:</strong> ${segment.variables.temperature_c.toFixed(1)}°C
-        </div>
-        <div class="variable-item">
-            <strong>Volumen de aceite:</strong> ${segment.variables.oil_volume_lt} L
+        <div class="info-item">
+            <div class="info-content-item">
+                <span class="info-name">🛢️ Volumen de aceite</span>
+                <span class="info-value">${segment.variables.oil_volume_lt} L</span>
+            </div>
         </div>
     `;
 }
 
 export function clearSegmentInfo() {
     const infoContent = document.querySelector('.info-content');
+    const segmentTitle = document.querySelector('.segment-info h3');
+    
+    // Reset header to original state
+    segmentTitle.innerHTML = 'Información del Segmento';
+    
     infoContent.innerHTML = '<p>Selecciona un segmento en el mapa para ver su información</p>';
 }
 
@@ -102,16 +131,16 @@ function updateMetricsPanel(segment) {
     const metricsList = document.querySelector('.metrics-list');
     metricsList.innerHTML = `
         <li class="metric-item" data-metric="rain" data-unit="mm">
-            Lluvia
+            <span class="metric-name">🌧️ Lluvia</span>
         </li>
         <li class="metric-item" data-metric="temperature" data-unit="°C">
-            Temperatura
+            <span class="metric-name">🌡️ Temperatura</span>
         </li>
         <li class="metric-item" data-metric="oil_volume" data-unit="L">
-            Galones crudo
+            <span class="metric-name">🛢️ Galones crudo</span>
         </li>
         <li class="metric-item" data-metric="criticality" data-unit="">
-            Criticidad promedio
+            <span class="metric-name">⚠️ Criticidad promedio</span>
         </li>
     `;
     
