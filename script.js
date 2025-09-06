@@ -77,4 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Hide analytics section initially - only show when segment is selected
     hideSegmentAnalytics();
+    
+    // Set up callback to load segments when map is ready
+    window.onMapReady = () => {
+        loadSegmentData();
+    };
 });

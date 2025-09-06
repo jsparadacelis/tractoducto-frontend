@@ -31,6 +31,11 @@ export function initMap() {
     
     // Set to hybrid mode (satellite with labels)
     map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+    
+    // Trigger map ready event so segments can be loaded
+    if (window.onMapReady) {
+        window.onMapReady();
+    }
 }
 
 // Make initMap globally available for the Google Maps callback

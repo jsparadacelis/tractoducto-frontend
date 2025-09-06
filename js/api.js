@@ -34,81 +34,189 @@ export async function loadPredictiveData(selectedDate) {
 }
 
 // --- Mock Data Generators ---
-function getBaseSegments() {
-    return [
-        {
-            segment_id: "1500+58",
-            coordinates: [
-                { lat: 3.746525, lng: -71.863551 },
-                { lat: 3.750000, lng: -71.860000 }
-            ]
-        },
-        {
-            segment_id: "1500+59", 
-            coordinates: [
-                { lat: 3.750000, lng: -71.860000 },
-                { lat: 3.753000, lng: -71.857000 }
-            ]
-        },
-        {
-            segment_id: "1500+60",
-            coordinates: [
-                { lat: 3.753000, lng: -71.857000 },
-                { lat: 3.756000, lng: -71.854000 }
-            ]
-        }
-    ];
+let cachedRoadSegments = null;
+
+async function getBaseSegments() {
+    // Return cached segments if already calculated
+    if (cachedRoadSegments) {
+        return cachedRoadSegments;
+    }
+    
+    const start = { lat: 3.746525, lng: -71.863551 };
+    const end = { lat: 3.734982, lng: -71.889231 };
+    
+    try {
+        // Get the actual road path using Google Directions API
+        const roadPath = await getRoadPath(start, end);
+        
+        // Divide the road path into 20 segments
+        cachedRoadSegments = createSegmentsFromPath(roadPath);
+        return cachedRoadSegments;
+        
+    } catch (error) {
+        console.warn('Failed to get road path, using fallback segments:', error);
+        // Fallback to straight line segments if Directions API fails
+        return getFallbackSegments(start, end);
+    }
 }
 
-function generateDescriptiveData(selectedDate) {
+async function getRoadPath(start, end) {
+    try {
+        // Use Roads API to snap to roads with interpolation
+        const snappedPath = await snapToRoads([start, end]);
+        console.log(`Got snapped road path with ${snappedPath.length} points`);
+        return snappedPath;
+    } catch (error) {
+        throw new Error(`Roads API failed: ${error.message}`);
+    }
+}
+
+// --- Roads API Integration ---
+async function snapToRoads(points) {
+    const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    const pathParam = points.map(p => `${p.lat},${p.lng}`).join("|");
+    const url = `https://roads.googleapis.com/v1/snapToRoads?interpolate=true&path=${encodeURIComponent(pathParam)}&key=${GOOGLE_MAPS_API_KEY}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.snappedPoints) {
+        throw new Error("Snap to Roads failed: " + JSON.stringify(data));
+    }
+
+    return data.snappedPoints.map(sp => ({
+        lat: sp.location.latitude,
+        lng: sp.location.longitude
+    }));
+}
+
+function createSegmentsFromPath(path) {
+    if (path.length < 2) return [];
+
+    const segments = [];
+    const numSegments = 20;
+    
+    // Split by index along snapped path (following POC approach)
+    const step = Math.max(1, Math.floor(path.length / numSegments));
+
+    for (let i = 0; i < path.length - 1; i += step) {
+        const startPoint = path[i];
+        const endPoint = path[i + step] || path[path.length - 1];
+        
+        // Create segment with start and end coordinates
+        const segmentCoords = [startPoint, endPoint];
+        
+        segments.push({
+            segment_id: `1500+${String(58 + Math.floor(i / step)).padStart(2, '0')}`,
+            coordinates: segmentCoords
+        });
+    }
+    
+    // Ensure we have exactly 20 segments
+    while (segments.length < 20 && path.length >= 2) {
+        const lastSegment = segments[segments.length - 1];
+        const nextIndex = segments.length;
+        segments.push({
+            segment_id: `1500+${String(58 + nextIndex).padStart(2, '0')}`,
+            coordinates: [lastSegment.coordinates[1], path[path.length - 1]]
+        });
+    }
+    
+    console.log(`Created ${segments.length} segments following the snapped road path`);
+    return segments.slice(0, 20); // Ensure exactly 20 segments
+}
+
+function getFallbackSegments(start, end) {
+    const segments = [];
+    
+    // Calculate increments for 20 segments (straight line fallback)
+    const latIncrement = (end.lat - start.lat) / 20;
+    const lngIncrement = (end.lng - start.lng) / 20;
+    
+    for (let i = 0; i < 20; i++) {
+        const currentLat = start.lat + (latIncrement * i);
+        const currentLng = start.lng + (lngIncrement * i);
+        const nextLat = start.lat + (latIncrement * (i + 1));
+        const nextLng = start.lng + (lngIncrement * (i + 1));
+        
+        segments.push({
+            segment_id: `1500+${String(58 + i).padStart(2, '0')}`,
+            coordinates: [
+                { lat: currentLat, lng: currentLng },
+                { lat: nextLat, lng: nextLng }
+            ]
+        });
+    }
+    
+    return segments;
+}
+
+async function generateDescriptiveData(selectedDate) {
     console.log("Generating descriptive (historical/current) data");
-    const baseSegments = getBaseSegments();
-    const dateVariation = new Date(selectedDate).getDate() % 3;
+    const baseSegments = await getBaseSegments();
+    const dateVariation = new Date(selectedDate).getDate() % 5;
     
     // Descriptive data represents actual observed conditions
     return baseSegments.map((segment, index) => {
-        const rainValues = [15.2, 7.8, 1.9];
-        const tempValues = [33, 30, 26];
-        const volumeValues = [562, 423, 301];
-        const criticalityPattern = ['media', 'baja', 'alta'];
+        // Generate varied data along the road
+        const rainBase = 10 + Math.sin(index * 0.5) * 8 + Math.random() * 5; // 5-23mm range
+        const tempBase = 28 + Math.cos(index * 0.3) * 4 + Math.random() * 3; // 25-35°C range  
+        const volumeBase = 300 + index * 20 + Math.random() * 100; // Increasing volume along road
+        
+        // Vary criticality realistically along the road
+        const criticalityOptions = ['baja', 'media', 'alta'];
+        let criticalityIndex;
+        if (index < 5) criticalityIndex = 0; // First segments usually low risk
+        else if (index > 15) criticalityIndex = 2; // End segments higher risk
+        else criticalityIndex = Math.floor(Math.random() * 3); // Middle segments random
         
         return {
             ...segment,
             date: selectedDate,
             variables: {
-                rain_mm: rainValues[index] + (dateVariation * 1.5),
-                temperature_c: tempValues[index] + dateVariation,
-                oil_volume_lt: volumeValues[index] + (dateVariation * 15)
+                rain_mm: Math.round((rainBase + dateVariation * 1.5) * 10) / 10,
+                temperature_c: Math.round((tempBase + dateVariation) * 10) / 10,
+                oil_volume_lt: Math.round(volumeBase + (dateVariation * 15))
             },
             target: {
-                criticidad: criticalityPattern[(index + dateVariation) % 3]
+                criticidad: criticalityOptions[(criticalityIndex + dateVariation) % 3]
             }
         };
     });
 }
 
-function generatePredictiveData(selectedDate) {
+async function generatePredictiveData(selectedDate) {
     console.log("Generating predictive (forecast) data");
-    const baseSegments = getBaseSegments();
-    const dateVariation = new Date(selectedDate).getDate() % 3;
+    const baseSegments = await getBaseSegments();
+    const dateVariation = new Date(selectedDate).getDate() % 5;
     
     // Predictive data represents forecasted conditions (usually more uncertain/variable)
     return baseSegments.map((segment, index) => {
-        const rainValues = [23.7, 14.2, 6.8]; // Higher variability for predictions
-        const tempValues = [37, 35, 31]; // Slightly different from descriptive
-        const volumeValues = [634, 498, 367]; // Different traffic predictions
-        const criticalityPattern = ['alta', 'alta', 'media']; // More conservative predictions
+        // Generate more variable predictions along the road
+        const rainBase = 12 + Math.sin(index * 0.4) * 10 + Math.random() * 8; // Higher variability
+        const tempBase = 30 + Math.cos(index * 0.2) * 5 + Math.random() * 4; // More temperature variation
+        const volumeBase = 350 + index * 25 + Math.random() * 150; // Higher traffic predictions
+        
+        // More conservative (higher risk) predictions
+        const criticalityOptions = ['baja', 'media', 'alta'];
+        let criticalityIndex;
+        if (index < 3) criticalityIndex = 1; // Start with medium risk
+        else if (index > 17) criticalityIndex = 2; // End segments high risk
+        else criticalityIndex = Math.floor(Math.random() * 3) + 0.5; // Slightly higher risk tendency
+        
+        // Ensure index is within bounds
+        criticalityIndex = Math.min(2, Math.floor(criticalityIndex));
         
         return {
             ...segment,
             date: selectedDate,
             variables: {
-                rain_mm: rainValues[index] + (dateVariation * 2.5), // More variation
-                temperature_c: tempValues[index] + (dateVariation * 1.5),
-                oil_volume_lt: volumeValues[index] + (dateVariation * 25)
+                rain_mm: Math.round((rainBase + dateVariation * 2.5) * 10) / 10,
+                temperature_c: Math.round((tempBase + dateVariation * 1.5) * 10) / 10,
+                oil_volume_lt: Math.round(volumeBase + (dateVariation * 25))
             },
             target: {
-                criticidad: criticalityPattern[(index + dateVariation) % 3]
+                criticidad: criticalityOptions[(criticalityIndex + dateVariation) % 3]
             }
         };
     });
