@@ -1,7 +1,14 @@
+// --- Imports ---
+import { Chart, registerables } from 'chart.js';
+
+// Register Chart.js components
+Chart.register(...registerables);
+
 // --- Global Variables ---
 let map;
 let currentMode = 'descriptive';
 let roadSegments = [];
+let rainfallChart = null; // Store chart instance
 
 // --- Environment Variables ---
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -139,6 +146,9 @@ async function loadPredictiveData(selectedDate) {
 function clearSegmentInfo() {
     const infoContent = document.querySelector('.info-content');
     infoContent.innerHTML = '<p>Selecciona un segmento en el mapa para ver su información</p>';
+    
+    // Hide analytics section when no segment is selected
+    hideSegmentAnalytics();
 }
 
 // --- Mock Data Generators ---
@@ -307,9 +317,140 @@ function showSegmentInfo(segment) {
             <strong>Volumen de aceite:</strong> ${segment.variables.oil_volume_lt} L
         </div>
     `;
+    
+    // Show analytics section with segment data
+    showSegmentAnalytics(segment);
+}
+
+// --- Segment Analytics ---
+function showSegmentAnalytics(segment) {
+    const analyticsSection = document.querySelector('.analytics-section');
+    analyticsSection.style.display = 'flex';
+    
+    // Update metrics panel with segment data
+    updateMetricsPanel(segment);
+    
+    // Update chart with segment's historical data
+    drawSegmentRainfallChart(segment);
+}
+
+function hideSegmentAnalytics() {
+    const analyticsSection = document.querySelector('.analytics-section');
+    analyticsSection.style.display = 'none';
+}
+
+function updateMetricsPanel(segment) {
+    const metricsList = document.querySelector('.metrics-list');
+    metricsList.innerHTML = `
+        <li>- Lluvia: ${segment.variables.rain_mm.toFixed(1)} mm</li>
+        <li>- Temperatura: ${segment.variables.temperature_c.toFixed(1)}°C</li>
+        <li>- Galones crudo: ${segment.variables.oil_volume_lt} L</li>
+        <li>- Criticidad promedio: ${segment.target.criticidad.toUpperCase()}</li>
+    `;
+}
+
+// --- Rainfall Chart with Chart.js ---
+function drawSegmentRainfallChart(segment) {
+    const canvas = document.getElementById('rainfall-chart');
+    const ctx = canvas.getContext('2d');
+    
+    // Generate historical data for this segment (mock data)
+    const data = generateSegmentHistoricalData(segment);
+    
+    // Destroy existing chart if it exists
+    if (rainfallChart) {
+        rainfallChart.destroy();
+    }
+    
+    // Create new Chart.js chart
+    rainfallChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: 'Lluvia (mm)',
+                data: data.rainfall,
+                backgroundColor: '#3b82f6',
+                borderColor: '#2563eb',
+                borderWidth: 1,
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Lluvia diaria - Segmento ${segment.segment_id}`,
+                    font: {
+                        size: 16,
+                        weight: '600'
+                    },
+                    color: '#374151'
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: '#f3f4f6'
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#6b7280',
+                        font: {
+                            size: 10
+                        },
+                        maxTicksLimit: 8 // Limit labels to avoid crowding
+                    }
+                }
+            },
+            elements: {
+                bar: {
+                    backgroundColor: '#3b82f6'
+                }
+            }
+        }
+    });
+}
+
+function generateSegmentHistoricalData(segment) {
+    // Mock historical data generation based on segment
+    const dates = [];
+    const rainfall = [];
+    const baseValue = segment.variables.rain_mm;
+    
+    for (let i = 14; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toLocaleDateString('es', { month: '2-digit', day: '2-digit' }));
+        
+        // Generate varied rainfall data around the segment's current value
+        const variation = (Math.random() - 0.5) * 10;
+        rainfall.push(Math.max(0, baseValue + variation));
+    }
+    
+    return { dates, rainfall };
 }
 
 // --- Initialize Application ---
 document.addEventListener('DOMContentLoaded', () => {
     loadGoogleMaps();
+    // Hide analytics section initially - only show when segment is selected
+    hideSegmentAnalytics();
 });

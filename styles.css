@@ -71,12 +71,10 @@ body {
     background: #fff;
     display: flex;
     align-items: center;
-    border: 2px solid #000;
     margin-bottom: 10px;
 }
 
 .segment-info {
-    border: 2px solid #000;
     background: #fff;
     padding: 10px;
     height: calc(90vh - 120px);
@@ -103,3 +101,49 @@ body {
 .criticality-high { border-left-color: #dc2626; }
 .criticality-medium { border-left-color: #f59e0b; }
 .criticality-low { border-left-color: #16a34a; }
+
+/* Analytics Section */
+.analytics-section {
+    display: flex;
+    margin: 20px;
+    gap: 20px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 2px solid #000;
+}
+
+.metrics-panel {
+    width: 30%;
+    padding: 10px;
+}
+
+.metrics-panel h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.metrics-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.metrics-list li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: #374151;
+}
+
+.chart-container {
+    flex: 1;
+    padding: 10px;
+    position: relative;
+}
+
+#rainfall-chart {
+    width: 100% !important;
+    height: 200px !important;
+}
